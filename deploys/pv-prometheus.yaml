@@ -1,0 +1,14 @@
+# pv-prometheus.yaml
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: pv-prometheus
+spec:
+  storageClassName: local-static
+  capacity:
+    storage: 8Gi
+  accessModes:
+    - ReadWriteOnce
+  hostPath:
+    path: /mnt/data/prometheus
+

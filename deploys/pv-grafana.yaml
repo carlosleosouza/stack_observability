@@ -1,0 +1,14 @@
+# pv-grafana.yaml
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: pv-grafana
+spec:
+  storageClassName: local-static
+  capacity:
+    storage: 5Gi
+  accessModes:
+    - ReadWriteOnce
+  hostPath:
+    path: /mnt/data/grafana
+

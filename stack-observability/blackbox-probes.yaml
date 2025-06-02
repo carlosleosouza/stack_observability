@@ -1,0 +1,101 @@
+apiVersion: monitoring.coreos.com/v1
+kind: Probe
+metadata:
+  name: probe-sgcplus
+  namespace: observability
+  labels:
+    release: kube-prom-stack
+spec:
+  jobName: "blackbox-sgcplus"
+  prober:
+    url: 172.16.2.213:9115
+  targets:
+    staticConfig:
+      static:
+        - https://hp-sgcplus.fieb.org.br
+  module: http_2xx
+---
+apiVersion: monitoring.coreos.com/v1
+kind: Probe
+metadata:
+  name: probe-banco-sangue
+  namespace: observability
+  labels:
+    release: kube-prom-stack
+spec:
+  jobName: "blackbox-banco-sangue"
+  prober:
+    url: 172.16.2.213:9115
+  targets:
+    staticConfig:
+      static:
+        - https://h-sbs.fieb.org.br
+  module: http_2xx
+---
+apiVersion: monitoring.coreos.com/v1
+kind: Probe
+metadata:
+  name: probe-sistema-nada-consta
+  namespace: observability
+  labels:
+    release: kube-prom-stack
+spec:
+  jobName: "blackbox-sistema-nada-consta"
+  prober:
+    url: 172.16.2.213:9115
+  targets:
+    staticConfig:
+      static:
+        - sistema-nada-consta
+  module: http_2xx
+---
+apiVersion: monitoring.coreos.com/v1
+kind: Probe
+metadata:
+  name: probe-scrm-hml
+  namespace: observability
+  labels:
+    release: kube-prom-stack
+spec:
+  jobName: "blackbox-scrm-hml"
+  prober:
+    url: 172.16.2.213:9115
+  targets:
+    staticConfig:
+      static:
+        - https://h-scrm.fieb.org.br
+  module: http_2xx
+---
+apiVersion: monitoring.coreos.com/v1
+kind: Probe
+metadata:
+  name: probe-sgc-vendas-cieb
+  namespace: observability
+  labels:
+    release: kube-prom-stack
+spec:
+  jobName: "blackbox-sgc-vendas-cieb"
+  prober:
+    url: 172.16.2.213:9115
+  targets:
+    staticConfig:
+      static:
+        - https://h-fichacadastral.fieb.org.br
+  module: http_2xx
+---
+apiVersion: monitoring.coreos.com/v1
+kind: Probe
+metadata:
+  name: probe-portal-do-candidato
+  namespace: observability
+  labels:
+    release: kube-prom-stack
+spec:
+  jobName: "blackbox-portal-do-candidato"
+  prober:
+    url: 172.16.2.213:9115
+  targets:
+    staticConfig:
+      static:
+        - https://h-portaldocandidato.fieb.org.br
+  module: http_2xx

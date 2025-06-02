@@ -1,0 +1,12 @@
+# storageclass-local-path.yaml (Criado automaticamente pelo local-path-provisioner)
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: stack-sc # O nome padrão pode ser 'local-path'
+  annotations:
+    storageclass.kubernetes.io/is-default-class: "true" # Pode ser a SC padrão do cluster
+  labels:
+    stack: monitoring
+provisioner: rancher.io/local-path # O provisioner que você instalou
+reclaimPolicy: Retain # O volume será deletado do host quando o PVC for deletado
+volumeBindingMode: WaitForFirstConsumer # O PV só é criado quando um Pod usa o PVC

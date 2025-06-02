@@ -1,0 +1,14 @@
+# pv-grafana.yaml
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: observability-pv
+spec:
+  storageClassName: observability-sc 
+  capacity:
+    storage: 50Gi
+  accessModes:
+    - ReadWriteOnce
+  hostPath:
+    path: /mnt/data/grafana
+

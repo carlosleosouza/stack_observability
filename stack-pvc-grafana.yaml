@@ -1,0 +1,19 @@
+# stack-pvc-grafana.yaml
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: stack-pvc-grafana
+  namespace: monitoring # Namespace onde o Grafana está instalado
+  labels:
+    stack: monitoring
+spec:
+  accessModes:
+    - ReadWriteOnce # Volumes hostPath são RWO por natureza
+  resources:
+    requests:
+      storage: 50Gi # Solicita 50GB
+  storageClassName: stack-sc # Usar a SC criada pelo local-path-provisioner
+  selector:
+    matchLabels:
+      stack: monitoring # Seleciona o PV com o mesmo label
+  volumeName: stack-pv-grafana # Nome do PV que foi criado

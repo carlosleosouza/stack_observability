@@ -1,0 +1,16 @@
+persistence:
+  enabled: true
+  existingClaim: pvc-tempo
+tempo:
+  storage:
+    trace:
+      backend: local
+      local:
+        path: /var/tempo
+resources:
+  requests:
+    memory: 200Mi
+    cpu: 100m
+  limits:
+    memory: 400Mi
+    cpu: 200m

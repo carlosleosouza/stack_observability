@@ -1,0 +1,25 @@
+alertmanager:
+  enabled: true
+  persistentVolume:
+    enabled: true
+    existingClaim: pvc-prometheus
+pushgateway:
+  enabled: false
+server:
+  persistentVolume:
+    enabled: true
+    existingClaim: pvc-prometheus
+  retention: 15d
+  resources:
+    requests:
+      memory: 200Mi
+      cpu: 100m
+    limits:
+      memory: 400Mi
+      cpu: 200m
+  service:
+    type: ClusterIP
+  readinessProbe:
+    initialDelaySeconds: 30
+  livenessProbe:
+    initialDelaySeconds: 30

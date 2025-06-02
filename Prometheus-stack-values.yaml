@@ -1,0 +1,104 @@
+grafana:
+  persistence:
+    enabled: true
+    type: pvc
+    storageClassName: stack-sc
+    accessModes:
+      - ReadWriteOnce
+    size: 50Gi
+    finalizers:
+      - kubernetes.io/pvc-protection
+  securityContext:
+    runAsUser: 472
+    fsGroup: 472
+  adminUser: admin
+  adminPassword: admin
+  service:
+    type: ClusterIP
+  readinessProbe:
+    httpGet:
+      path: /api/health
+      port: 3000
+    initialDelaySeconds: 120
+    timeoutSeconds: 10
+    periodSeconds: 15
+    failureThreshold: 10
+  livenessProbe:
+    httpGet:
+      path: /api/health
+      port: 3000
+    initialDelaySeconds: 180
+    timeoutSeconds: 10
+    periodSeconds: 30
+    failureThreshold: 5
+  replicaCount: 1
+  sidecar:
+    dashboards:
+      enabled: true
+      label: grafana_dashboard
+      labelValue: "1"
+      searchNamespace: ALL
+      enableNewTablePanelSyntax: false
+    datasources:
+      enabled: true
+      defaultDatasourceEnabled: true
+      isDefaultDatasource: true
+      name: Prometheus
+      uid: prometheus
+      url: http://prometheus-operated.monitoring.svc.cluster.local:9090/
+  initChownData:
+    enabled: false
+prometheus:
+  prometheusSpec:
+    storageSpec:
+      volumeClaimTemplate:
+        metadata:
+          name: stack-pvc-prometheus
+        spec:
+          storageClassName: stack-sc
+          accessModes:
+            - ReadWriteOnce
+          resources:
+            requests:
+              storage: 50Gi
+    maximumStartupDurationSeconds: 300
+    retention: 10d
+    serviceMonitorNamespaceSelector: {} # get service monitors on all namespaces
+    serviceMonitorSelectorNilUsesHelmValues: false
+    ruleSelectorNilUsesHelmValues: false
+    ruleNamespaceSelector: {}
+    serviceMonitorSelector: {} # get all existing service monitors
+  readinessProbe:
+    httpGet:
+      path: /-/ready
+      port: 9090
+    initialDelaySeconds: 120
+    timeoutSeconds: 10
+    periodSeconds: 15
+    failureThreshold: 10
+  kubeEtcd:
+    enabled: true
+alertmanager:
+  enabled: true
+  alertmanagerSpec:
+    storageSpec:
+      volumeClaimTemplate:
+        metadata:
+          name: stack-pvc-alertmanager
+        spec:
+          storageClassName: stack-sc
+          accessModes:
+            - ReadWriteOnce
+          resources:
+            requests:
+              storage: 50Gi
+    serviceMonitorNamespaceSelector: {} # get service monitors on all namespaces
+    serviceMonitorSelectorNilUsesHelmValues: false
+    ruleSelectorNilUsesHelmValues: false
+    ruleNamespaceSelector: {}
+    serviceMonitorSelector: {} # get all existing service monitors
+prometheus-windows-exporter:
+  prometheus:
+    monitor:
+      enabled: false
+      jobLabel: jobLabel

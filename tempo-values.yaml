@@ -1,0 +1,17 @@
+tempo:
+  resources:
+    requests:
+      cpu: 500m
+      memory: 512M
+    limits:
+      cpu: 1000m
+      memory: 1Gi
+tempoQuery:
+  enabled: true
+persistence:
+  enabled: true
+  enableStatefulSetAutoDeletePVC: false
+  storageClassName: stack-sc
+  accessModes:
+    - ReadWriteOnce
+  size: 50Gi

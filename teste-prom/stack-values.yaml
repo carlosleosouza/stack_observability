@@ -1,0 +1,27 @@
+grafana:
+  enabled: true
+  persistence:
+    enabled: true
+    #   type: sts
+    storageClassName: "observability-sc"
+    accessModes:
+      - ReadWriteOnce
+    size: 10Gi
+prometheus:
+  enabled: true
+  persistence:
+    enabled: true
+    #   type: sts
+    storageClassName: "observability-sc"
+    accessModes:
+      - ReadWriteOnce
+    size: 10Gi
+alertmanager:
+  enabled: true
+  persistence:
+    enabled: true
+    #   type: sts
+    storageClassName: "observability-sc"
+    accessModes:
+      - ReadWriteOnce
+    size: 10Gi

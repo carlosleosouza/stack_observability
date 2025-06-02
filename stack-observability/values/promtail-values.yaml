@@ -1,0 +1,33 @@
+config:
+  clients:
+    - url: http://loki:3100/loki/api/v1/push
+  positions:
+    filename: /data/positions.yaml
+  scrape_configs:
+    - job_name: system
+      static_configs:
+        - targets:
+            - localhost
+          labels:
+            job: varlogs
+            __path__: /var/log/**/*/*.log
+persistence:
+  enabled: true
+  StorageClassName: local-static
+  accessModes:
+    - ReadWriteOnce
+  size: 2Gi
+volumeMounts:
+  - name: positions
+    mountPath: /data
+extraVolumes:
+  - name: positions
+    persistentVolumeClaim:
+      claimName: pvc-promtail
+resources:
+  requests:
+    memory: 50Mi
+    cpu: 50m
+  limits:
+    memory: 100Mi
+    cpu: 100m

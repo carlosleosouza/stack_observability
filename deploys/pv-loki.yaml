@@ -1,0 +1,14 @@
+# pv-loki.yaml
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: pv-loki
+spec:
+  storageClassName: local-static
+  capacity:
+    storage: 10Gi
+  accessModes:
+    - ReadWriteOnce
+  hostPath:
+    path: /mnt/data/loki
+

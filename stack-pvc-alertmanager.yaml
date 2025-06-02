@@ -1,0 +1,19 @@
+# stack-pvc-alertmanager.yaml
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: stack-pvc-alertmanager
+  namespace: monitoring
+  labels:
+    stack: monitoring
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 50Gi
+  storageClassName: stack-sc
+  selector:
+    matchLabels:
+      stack: monitoring
+  volumeName: stack-pv-alertmanager # Nome do PV que foi criado

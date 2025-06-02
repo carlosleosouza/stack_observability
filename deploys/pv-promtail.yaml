@@ -1,0 +1,14 @@
+# pv-promtail.yaml
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: pv-promtail
+spec:
+  storageClassName: local-static
+  capacity:
+    storage: 5Gi
+  accessModes:
+    - ReadWriteOnce
+  hostPath:
+    path: /mnt/data/promtail
+

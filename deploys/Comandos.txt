@@ -1,0 +1,55 @@
+  
+  helm install prometheus prometheus-community/prometheus \
+  -n monitoring \
+  --create-namespace \
+  --set server.persistentVolume.storageClass="local-static" \
+  --set server.persistentVolume.enabled=true \
+  --set server.persistentVolume.size=8Gi \
+  --set alertmanager.persistentVolume.storageClass="local-static" \
+  --set alertmanager.persistentVolume.enabled=true \
+  --set alertmanager.persistentVolume.size=2Gi
+
+
+  helm install grafana grafana/grafana \
+  --namespace monitoring \
+  --set persistence.enabled=true \
+  --set persistence.size=5Gi \
+  --set persistence.storageClassName="local-static" \
+  --set adminPassword="admin" \
+  --set service.type=NodePort \
+  --set server.persistentVolume.storageClass="local-static" \
+  --set securityContext.fsGroup=472 \
+  --set initChownData.enabled=false
+
+
+
+  helm install loki grafana/loki \
+  --namespace monitoring \
+  --set persistence.enabled=true \
+  --set persistence.size=10Gi \
+  --set persistence.storageClassName="local-static" \
+  --set service.type=ClusterIP \
+  --set loki.storage.bucketNames.chunks=loki-chunks \
+  --set loki.storage.bucketNames.ruler=loki-ruler \
+  --set loki.storage.bucketNames.admin=loki-admin \
+  --set loki.useTestSchema=true \
+  --set server.persistentVolume.storageClass="local-static"
+
+  helm install promtail grafana/promtail \
+  --namespace monitoring \
+  --set config.lokiAddress=http://loki.monitoring.svc.cluster.local:3100 \
+  --set persistence.enabled=true \
+  --set persistence.size=5Gi \
+  --set persistence.storageClassName=local-static \
+  --set server.persistentVolume.storageClass="local-static"
+
+
+  helm install tempo grafana/tempo \
+  --namespace monitoring \
+  --set persistence.enabled=true \
+  --set persistence.size=10Gi \
+  --set persistence.storageClassName="local-static" \
+  --set tempo.metrics.enabled=true \
+  --set service.type=ClusterIP \
+  --set server.persistentVolume.storageClass="local-static"
+
