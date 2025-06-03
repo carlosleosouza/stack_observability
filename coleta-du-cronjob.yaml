@@ -1,0 +1,22 @@
+# coleta-du-cronjob.yaml
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: coleta-du
+  namespace: kube-system
+spec:
+  schedule: "0 * * * *"  # A cada hora
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          containers:
+          - name: coleta-du
+            image: alpine:latest
+            command: ["/bin/sh", "-c"]
+            args:
+            - |
+              apk add --no-cache coreutils;
+              du -sh /var/lib/docker/containers /var/lib/kubelet/pods /var/log /opt/applications || true
+          restartPolicy: Never
+
