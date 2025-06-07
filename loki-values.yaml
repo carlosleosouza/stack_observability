@@ -28,6 +28,10 @@ promtail:
   config:
     clients:
       - url: http://loki-stack.observability.svc.cluster.local:3100/loki/api/v1/push # Sets the endpoint for Promtail to push logs to Loki. This is the Loki service URL within the Kubernetes cluster
+        tenant_id: ""
+        batchwait: 1s
+        batchsize: 1048576
+        timeout: 10s
     positions:
       filename: /run/promtail/positions.yaml # Sets the file path where Promtail stores positions for each log it reads, ensuring logs are picked up from where it last left off
     scrape_configs:
