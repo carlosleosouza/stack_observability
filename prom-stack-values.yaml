@@ -1,0 +1,300 @@
+# Configuração completa do kube-prometheus-stack corrigida
+prometheus:
+  prometheusSpec:
+    global:
+      scrapeInterval: 15s
+      evaluationInterval: 15s
+    
+    # Configurações de scrape personalizadas (corrigidas)
+    additionalScrapeConfigs: |
+      - job_name: 'prometheus'
+        static_configs:
+          - targets: ['localhost:9090']
+
+      - job_name: 'tempo'
+        static_configs:
+          - targets: ['tempo:3100']
+
+      - job_name: 'kubernetes-apiservers'
+        kubernetes_sd_configs:
+          - role: endpoints
+        scheme: https
+        tls_config:
+          ca_file: /var/run/secrets/kubernetes.io/serviceaccount/ca.crt
+        bearer_token_file: /var/run/secrets/kubernetes.io/serviceaccount/token
+        relabel_configs:
+          - source_labels: [__meta_kubernetes_namespace, __meta_kubernetes_service_name, __meta_kubernetes_endpoint_port_name]
+            action: keep
+            regex: default;kubernetes;https
+
+      - job_name: 'kubernetes-nodes'
+        scheme: https
+        tls_config:
+          ca_file: /var/run/secrets/kubernetes.io/serviceaccount/ca.crt
+        bearer_token_file: /var/run/secrets/kubernetes.io/serviceaccount/token
+        kubernetes_sd_configs:
+          - role: node
+        relabel_configs:
+          - action: labelmap
+            regex: __meta_kubernetes_node_label_(.+)
+          - target_label: __address__
+            replacement: kubernetes.default.svc:443
+          - source_labels: [__meta_kubernetes_node_name]
+            regex: (.+)
+            target_label: __metrics_path__
+            replacement: /api/v1/nodes/${1}/proxy/metrics
+
+      - job_name: 'kubernetes-pods'
+        kubernetes_sd_configs:
+          - role: pod
+        relabel_configs:
+          - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_scrape]
+            action: keep
+            regex: true
+          - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_path]
+            action: replace
+            target_label: __metrics_path__
+            regex: (.+)
+          - source_labels: [__address__, __meta_kubernetes_pod_annotation_prometheus_io_port]
+            action: replace
+            regex: ([^:]+)(?::\d+)?;(\d+)
+            replacement: $1:$2
+            target_label: __address__
+          - action: labelmap
+            regex: __meta_kubernetes_pod_label_(.+)
+          - source_labels: [__meta_kubernetes_namespace]
+            action: replace
+            target_label: kubernetes_namespace
+          - source_labels: [__meta_kubernetes_pod_name]
+            action: replace
+            target_label: kubernetes_pod_name
+
+      - job_name: 'kubernetes-cadvisor'
+        scheme: https
+        tls_config:
+          ca_file: /var/run/secrets/kubernetes.io/serviceaccount/ca.crt
+        bearer_token_file: /var/run/secrets/kubernetes.io/serviceaccount/token
+        kubernetes_sd_configs:
+          - role: node
+        relabel_configs:
+          - action: labelmap
+            regex: __meta_kubernetes_node_label_(.+)
+          - target_label: __address__
+            replacement: kubernetes.default.svc:443
+          - source_labels: [__meta_kubernetes_node_name]
+            regex: (.+)
+            target_label: __metrics_path__
+            replacement: /api/v1/nodes/${1}/proxy/metrics/cadvisor
+
+      - job_name: 'kubernetes-service-endpoints'
+        kubernetes_sd_configs:
+          - role: endpoints
+        relabel_configs:
+          - source_labels: [__meta_kubernetes_service_annotation_prometheus_io_scrape]
+            action: keep
+            regex: true
+          - source_labels: [__meta_kubernetes_service_annotation_prometheus_io_scheme]
+            action: replace
+            target_label: __scheme__
+            regex: (https?)
+          - source_labels: [__meta_kubernetes_service_annotation_prometheus_io_path]
+            action: replace
+            target_label: __metrics_path__
+            regex: (.+)
+          - source_labels: [__address__, __meta_kubernetes_service_annotation_prometheus_io_port]
+            action: replace
+            target_label: __address__
+            regex: ([^:]+)(?::\d+)?;(\d+)
+            replacement: $1:$2
+          - action: labelmap
+            regex: __meta_kubernetes_service_label_(.+)
+          - source_labels: [__meta_kubernetes_namespace]
+            action: replace
+            target_label: kubernetes_namespace
+          - source_labels: [__meta_kubernetes_service_name]
+            action: replace
+            target_label: kubernetes_name
+
+    # Configurações do Alertmanager (corrigidas)
+    additionalAlertmanagerConfigs: |
+      - scheme: http
+        static_configs:
+          - targets:
+            - "alertmanager.observability.svc.cluster.local:9093"
+    
+    # Storage (usando configuração que funciona)
+    storageSpec:
+      volumeClaimTemplate:
+        metadata:
+          name: stack-pvc-prometheus
+        spec:
+          storageClassName: stack-sc
+          accessModes:
+            - ReadWriteOnce
+          resources:
+            requests:
+              storage: 10Gi
+    
+    maximumStartupDurationSeconds: 300
+    retention: 10d
+    
+    # Configurações de ServiceMonitor e Rules (simplificadas - configuração que funciona)
+    serviceMonitorNamespaceSelector: {}
+    serviceMonitorSelector: {}
+    serviceMonitorSelectorNilUsesHelmValues: false
+    
+    ruleNamespaceSelector: {}
+    ruleSelectorNilUsesHelmValues: false
+
+  # Probe de readiness (configuração que funciona)
+  readinessProbe:
+    httpGet:
+      path: /-/ready
+      port: 9090
+    initialDelaySeconds: 120
+    timeoutSeconds: 10
+    periodSeconds: 15
+    failureThreshold: 10
+
+# kubeEtcd movido para fora do prometheusSpec (CORREÇÃO CRÍTICA)
+kubeEtcd:
+  enabled: false
+
+# Correção para evitar erro de dual-stack
+kubeControllerManager:
+  enabled: false
+  service:
+    ipFamilyPolicy: SingleStack
+    ipFamilies:
+      - IPv4
+
+kubeScheduler:
+  enabled: false
+  service:
+    ipFamilyPolicy: SingleStack
+    ipFamilies:
+      - IPv4
+
+# Rules adicionais (mantendo suas configurações personalizadas)
+additionalPrometheusRules:
+  - name: alerta-cpu-super-app
+    groups:
+      - name: super-app.rules
+        rules:
+          - alert: HighPodCPUUsage
+            expr: |
+              sum(rate(container_cpu_usage_seconds_total{namespace="super-app", pod=~"super-app-.*"}[5m]))
+              /
+              sum(kube_pod_container_resource_limits_cpu_cores{namespace="super-app", pod=~"super-app-.*"})
+              > 0.8
+            for: 5m
+            labels:
+              severity: warning
+              app: super-app
+            annotations:
+              summary: "Uso de CPU alto na SUPER-APP."
+              description: |
+                O uso de CPU está acima de 80% para os pods da aplicação 'super-app' no namespace 'super-app' por mais de 5 minutos.
+                Verifique se o HPA está funcionando corretamente ou se há necessidade de aumentar recursos.
+  
+  # Adicionando as regras de disco da sua configuração funcional
+  - name: node-alerts
+    groups:
+      - name: node-alerts
+        rules:
+          - alert: DiskUsageHigh
+            expr: |
+              (node_filesystem_size_bytes{fstype=~"ext4|xfs"} - node_filesystem_free_bytes{fstype=~"ext4|xfs"})
+              / node_filesystem_size_bytes{fstype=~"ext4|xfs"} > 0.9
+            for: 5m
+            labels:
+              severity: critical
+            annotations:
+              summary: "Uso de disco acima de 90% ({{ $labels.instance }})"
+              description: "O uso de disco atingiu mais de 90% em {{ $labels.mountpoint }}."
+
+# Kube State Metrics - CORREÇÃO CRÍTICA para resolver o warning
+kube-state-metrics:
+  enabled: true
+  # Corrigindo a configuração de env para formato de array
+  env: []
+  # Se você tinha variáveis de ambiente específicas, use este formato:
+  # env:
+  #   - name: EXEMPLO_VAR
+  #     value: "valor_exemplo"
+
+# Grafana - CORREÇÃO CRÍTICA para resolver o erro nil pointer
+grafana:
+  # Desabilitando o operator para evitar erro de CRDs faltantes
+  operator:
+    dashboardsConfigMapRefEnabled: false
+  
+  initChownData:
+    enabled: false
+
+  persistence:
+    enabled: true
+    type: pvc
+    storageClassName: stack-sc
+    accessModes:
+      - ReadWriteOnce
+    size: 20Gi
+    finalizers:
+      - kubernetes.io/pvc-protection
+    resourcePolicy: keep
+  
+  securityContext:
+    runAsUser: 472
+    fsGroup: 472
+  
+  adminUser: admin
+  adminPassword: admin # Considere usar um Secret para produção!
+  
+  service:
+    type: ClusterIP
+  
+  readinessProbe:
+    httpGet:
+      path: /api/health
+      port: 3000
+    initialDelaySeconds: 120
+    timeoutSeconds: 10
+    periodSeconds: 15
+    failureThreshold: 10
+  
+  livenessProbe:
+    httpGet:
+      path: /api/health
+      port: 3000
+    initialDelaySeconds: 180
+    timeoutSeconds: 10
+    periodSeconds: 30
+    failureThreshold: 5
+  
+  replicaCount: 1
+  
+  sidecar:
+    dashboards:
+      enabled: true
+      label: grafana_dashboard
+      labelValue: "1"
+      searchNamespace: ALL
+      enableNewTablePanelSyntax: false
+    datasources:
+      enabled: true
+      defaultDatasourceEnabled: true
+      isDefaultDatasource: false  # Importante: configuração que funciona
+      name: Prometheus
+      uid: prometheus
+      url: http://prometheus-operated.observability.svc.cluster.local:9090/
+
+# Alertmanager
+alertmanager:
+  enabled: true
+
+# Configuração do Windows Exporter (da sua configuração funcional)
+prometheus-windows-exporter:
+  prometheus:
+    monitor:
+      enabled: false
+      jobLabel: jobLabel

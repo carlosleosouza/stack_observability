@@ -1,0 +1,259 @@
+prometheus:
+  prometheusSpec:
+    global:
+      scrapeInterval: 15s
+      evaluationInterval: 15s
+
+    additionalScrapeConfigs: |
+      - job_name: 'tempo'
+        static_configs:
+          - targets: ['tempo:3100']
+
+      - job_name: 'kubernetes-apiservers'
+        kubernetes_sd_configs:
+        - role: endpoints
+        scheme: https
+        tls_config:
+          ca_file: /var/run/secrets/kubernetes.io/serviceaccount/ca.crt
+        bearer_token_file: /var/run/secrets/kubernetes.io/serviceaccount/token
+        relabel_configs:
+        - source_labels: [__meta_kubernetes_namespace, __meta_kubernetes_service_name, __meta_kubernetes_endpoint_port_name]
+          action: keep
+          regex: default;kubernetes;https
+
+      - job_name: 'kubernetes-nodes'
+        scheme: https
+        tls_config:
+          ca_file: /var/run/secrets/kubernetes.io/serviceaccount/ca.crt
+        bearer_token_file: /var/run/secrets/kubernetes.io/serviceaccount/token
+        kubernetes_sd_configs:
+        - role: node
+        relabel_configs:
+        - action: labelmap
+          regex: __meta_kubernetes_node_label_(.+)
+        - target_label: __address__
+          replacement: kubernetes.default.svc:443
+        - source_labels: [__meta_kubernetes_node_name]
+          regex: (.+)
+          target_label: __metrics_path__
+          replacement: /api/v1/nodes/${1}/proxy/metrics
+
+      - job_name: 'kubernetes-pods'
+        kubernetes_sd_configs:
+        - role: pod
+        relabel_configs:
+        - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_scrape]
+          action: keep
+          regex: true
+        - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_path]
+          action: replace
+          target_label: __metrics_path__
+          regex: (.+)
+        - source_labels: [__address__, __meta_kubernetes_pod_annotation_prometheus_io_port]
+          action: replace
+          regex: ([^:]+)(?::\d+)?;(\d+)
+          replacement: $1:$2
+          target_label: __address__
+        - action: labelmap
+          regex: __meta_kubernetes_pod_label_(.+)
+        - source_labels: [__meta_kubernetes_namespace]
+          action: replace
+          target_label: kubernetes_namespace
+        - source_labels: [__meta_kubernetes_pod_name]
+          action: replace
+          target_label: kubernetes_pod_name
+
+      - job_name: 'kubernetes-cadvisor'
+        scheme: https
+        tls_config:
+          ca_file: /var/run/secrets/kubernetes.io/serviceaccount/ca.crt
+        bearer_token_file: /var/run/secrets/kubernetes.io/serviceaccount/token
+        kubernetes_sd_configs:
+        - role: node
+        relabel_configs:
+        - action: labelmap
+          regex: __meta_kubernetes_node_label_(.+)
+        - target_label: __address__
+          replacement: kubernetes.default.svc:443
+        - source_labels: [__meta_kubernetes_node_name]
+          regex: (.+)
+          target_label: __metrics_path__
+          replacement: /api/v1/nodes/${1}/proxy/metrics/cadvisor
+
+      - job_name: 'kubernetes-service-endpoints'
+        kubernetes_sd_configs:
+        - role: endpoints
+        relabel_configs:
+        - source_labels: [__meta_kubernetes_service_annotation_prometheus_io_scrape]
+          action: keep
+          regex: true
+        - source_labels: [__meta_kubernetes_service_annotation_prometheus_io_scheme]
+          action: replace
+          target_label: __scheme__
+          regex: (https?)
+        - source_labels: [__meta_kubernetes_service_annotation_prometheus_io_path]
+          action: replace
+          target_label: __metrics_path__
+          regex: (.+)
+        - source_labels: [__address__, __meta_kubernetes_service_annotation_prometheus_io_port]
+          action: replace
+          target_label: __address__
+          regex: ([^:]+)(?::\d+)?;(\d+)
+          replacement: $1:$2
+        - action: labelmap
+          regex: __meta_kubernetes_service_label_(.+)
+        - source_labels: [__meta_kubernetes_namespace]
+          action: replace
+          target_label: kubernetes_namespace
+        - source_labels: [__meta_kubernetes_service_name]
+          action: replace
+          target_label: kubernetes_name
+
+    additionalAlertmanagerConfigs: |
+      - scheme: http
+        static_configs:
+        - targets:
+          - "alertmanager.observability.svc:9093"
+
+    storageSpec:
+      volumeClaimTemplate:
+        spec:
+          storageClassName: stack-sc
+          accessModes:
+            - ReadWriteOnce
+          resources:
+            requests:
+              storage: 10Gi
+    maximumStartupDurationSeconds: 300
+    retention: 10d
+    serviceMonitorNamespaceSelector: {}
+    serviceMonitorSelector: {}
+    serviceMonitorSelectorNilUsesHelmValues: true
+    ruleSelectorNilUsesMode: true
+    ruleNamespaceSelector: {}
+
+  readinessProbe:
+    httpGet:
+      path: /-/ready
+      port: 9090
+    initialDelaySeconds: 120
+    timeoutSeconds: 10
+    periodSeconds: 15
+    failureThreshold: 10
+  kubeEtcd:
+    enabled: true
+
+kubeStateMetrics:
+  enabled: true
+
+grafana:
+  persistence:
+    enabled: true
+    type: pvc
+    storageClassName: stack-sc
+    accessModes:
+      - ReadWriteOnce
+    size: 20Gi
+    finalizers:
+      - kubernetes.io/pvc-protection
+    resourcePolicy: keep
+  securityContext:
+    runAsUser: 472
+    fsGroup: 472
+  adminUser: admin
+  adminPassword: admin # Considere usar um Secret para produção!
+  service:
+    type: ClusterIP
+  readinessProbe:
+    httpGet:
+      path: /api/health
+      port: 3000
+    initialDelaySeconds: 120
+    timeoutSeconds: 10
+    periodSeconds: 15
+    failureThreshold: 10
+  livenessProbe:
+    httpGet:
+      path: /api/health
+      port: 3000
+    initialDelaySeconds: 180
+    timeoutSeconds: 10
+    periodSeconds: 30
+    failureThreshold: 5
+  replicaCount: 1
+  sidecar:
+    dashboards:
+      enabled: true
+      label: grafana_dashboard
+      labelValue: "1"
+      searchNamespace: ALL
+      enableNewTablePanelSyntax: false
+    datasources:
+      enabled: true
+      defaultDatasourceEnabled: true
+      isDefaultDatasource: true
+      name: Prometheus
+      uid: prometheus
+      url: http://prometheus-operated.observability.svc.cluster.local:9090/
+  initChownData:
+    enabled: false
+
+alertmanager:
+  enabled: true
+  # Configuração interna do Alertmanager
+  alertmanagerSpec:
+    # Storage para o Alertmanager (onde ele persiste o estado, como silenciamentos)
+    storage:
+      volumeClaimTemplate:
+        spec:
+          storageClassName: stack-sc # Pode ser a mesma do Prometheus ou outra
+          accessModes:
+            - ReadWriteOnce
+          resources:
+            requests:
+              storage: 1Gi # Tamanho menor para o Alertmanager
+
+    config: |
+      global:
+        # re-resolve_timeout: 5m # Pode ser útil para ambientes com muitos alertas
+
+      receivers:
+        - name: 'null'
+        - name: 'slack-notifications'
+          slack_configs:
+            - channel: '#seu-canal-slack' # MUDAR: Nome do seu canal no Slack
+              api_url: 'https://hooks.slack.com/services/T00000000/B00000000/XXXXXXXXXXXXXXXXXXXXXXXX' # MUDAR: Sua URL do webhook do Slack (criar um Secret!)
+              send_resolved: true
+              text: '{{ template "slack.default.text" . }}'
+
+        - name: 'email-notifications'
+          email_configs:
+            - to: 'seu-email@exemplo.com' # MUDAR: Seu e-mail de destino
+              from: 'alertmanager@seu-dominio.com' # MUDAR: E-mail do remetente
+              smarthost: 'smtp.seu-servidor-smtp.com:587' # MUDAR: Seu servidor SMTP e porta
+              # Para produção, use Secrets para auth_username e auth_password
+              # auth_username: 'seu-usuario-smtp'
+              # auth_password: 'sua-senha-smtp'
+              send_resolved: true
+
+      route:
+        group_by: ['alertname', 'cluster', 'service']
+        group_wait: 30s
+        group_interval: 5m
+        repeat_interval: 4h
+        receiver: 'null'
+
+        routes:
+          - match:
+              severity: 'slack'
+            receiver: 'slack-notifications'
+            continue: true
+
+          - match:
+              severity: 'critical'
+            receiver: 'email-notifications'
+            # continue: false # Para não enviar para outras rotas se for crítico
+
+          - match:
+              alertname: 'High Pod Memory' # Exemplo de alerta específico
+            receiver: 'slack-notifications'

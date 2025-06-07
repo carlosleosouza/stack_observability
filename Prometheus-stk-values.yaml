@@ -45,7 +45,7 @@ grafana:
       isDefaultDatasource: true
       name: Prometheus
       uid: prometheus
-      url: http://prometheus-operated.monitoring.svc.cluster.local:9090/
+      url: http://prometheus-operated.observability.svc.cluster.local:9090/
   initChownData:
     enabled: false
 

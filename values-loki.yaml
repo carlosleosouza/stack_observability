@@ -1,0 +1,106 @@
+# values-loki.yaml
+
+# 1. Correção para PodSecurityPolicy (PSP) - Necessária para K8s 1.25+
+# Desabilita a criação de PodSecurityPolicy, pois foi removida em K8s 1.25.
+# O gráfico 'loki-stack' também pode tentar criá-la.
+podSecurityPolicy:
+  enabled: false
+
+# Configurações do Loki
+loki:
+  # 'enabled: true' é importante para garantir que o componente Loki seja implantado pelo gráfico 'loki-stack'.
+  enabled: true
+  image:
+    repository: grafana/loki
+    tag: "2.9.3" # Usando a tag que você especificou
+  replicas: 2 # Número de réplicas para o Loki (para alta disponibilidade)
+
+  # 2. CORREÇÃO CRÍTICA: Use o operador de bloco literal '|' aqui!
+  # Isso transforma todo o bloco de configuração do Loki em uma única string,
+  # que é o que o gráfico 'loki-stack' espera para a configuração interna do Loki.
+  config: |
+    auth_enabled: false # Uma configuração comum para desabilitar autenticação básica (para testes/ambientes simples)
+    
+    server:
+      http_listen_port: 3100
+      grpc_listen_port: 9095 # É uma boa prática ter a porta gRPC também.
+
+    schema_config:
+      configs:
+        - from: "2020-10-24" # Data de início para o esquema.
+          store: boltdb-shipper # Tipo de armazenamento para o índice (boltdb-shipper é comum para filesystem).
+          object_store: filesystem # Onde os "chunks" de logs são armazenados (filesystem para armazenamento local).
+          schema: v11 # Versão do esquema do Loki.
+          index:
+            prefix: index_ # Prefixo para os arquivos de índice.
+            period: 24h # Período de rotação do índice (diário).
+
+    ingester: # Configurações para o componente Ingester (recebe logs).
+      lifecycler:
+        ring:
+          replication_factor: 2 # Fator de replicação para logs (2 réplicas, correspondendo ao 'replicas' do Loki).
+          # Uma configuração básica para Ingester.
+          # Você pode querer adicionar mais configurações aqui dependendo do seu caso de uso (ex: chunk_idle_period)
+
+    # 3. Adicionar as configurações essenciais de armazenamento e limites para um Loki funcional
+    # Mesmo que o gráfico 'loki-stack' tenha padrões, é bom explicitá-los para evitar surpresas.
+    storage_config:
+      boltdb_shipper:
+        active_index_directory: /var/loki/index # Diretório para índices ativos.
+        cache_location: /var/loki/cache # Local do cache.
+        resync_interval: 5s # Intervalo de resync para o shipper.
+      filesystem:
+        directory: /var/loki/chunks # Diretório onde os chunks de logs são armazenados.
+
+    limits_config:
+      enforce_metric_name: false
+      reject_old_samples: true
+      reject_old_samples_max_age: 168h # Rejeita amostras mais antigas que 7 dias (168 horas).
+
+    chunk_store_config:
+      max_look_back_period: 0s # Não permite queries para logs muito antigos (pode ser ajustado).
+
+    table_manager:
+      retention_deletes_enabled: false # Se a exclusão de dados antigos deve ser ativada (cuidado ao habilitar sem política).
+      retention_period: 0s # Período de retenção (0s significa infinito sem a exclusão habilitada).
+
+# Configurações do Promtail
+promtail:
+  enabled: true # Ativa o componente Promtail (coletor de logs).
+  image:
+    repository: grafana/promtail
+    tag: "2.9.3" # Usando a tag que você especificou
+  config:
+    clients:
+      - url: http://loki:3100/loki/api/v1/push # URL do serviço Loki dentro do cluster.
+    positions:
+      filename: /run/promtail/positions.yaml # Onde o Promtail armazena o último ponto de leitura de logs.
+    scrape_configs:
+      - job_name: kubernetes-pods # Nome do trabalho de coleta.
+        kubernetes_sd_configs:
+          - role: pod # Descobrir logs de pods do Kubernetes.
+        relabel_configs: # Regras para re-rotular os logs.
+          - source_labels: [__meta_kubernetes_pod_label_name]
+            target_label: job
+          - source_labels: [__meta_kubernetes_namespace]
+            target_label: namespace
+          - source_labels: [__meta_kubernetes_pod_name]
+            target_label: pod
+          - action: replace
+            source_labels: [__meta_kubernetes_pod_container_name]
+            target_label: container
+  rbac: # Configurações RBAC para o Promtail.
+    create: true # Cria os recursos RBAC necessários.
+
+# Configurações do Grafana (se você quiser que o loki-stack instale o Grafana também)
+#grafana:
+#  enabled: false # Ativa o componente Grafana.
+  # Você pode adicionar mais configurações aqui para o Grafana, como:
+  # adminPassword: "sua-senha-segura-aqui" # Altere isso para uma senha real!
+  # service:
+  #   type: ClusterIP
+  #   port: 80
+  # ingress:
+  #   enabled: false
+  #   hosts:
+  #     - grafana.seus-dominio.com

@@ -2,9 +2,6 @@ podSecurityPolicy:
   enabled: false
 loki:
   enabled: true #Activates the Loki component in this setup for log aggregation.
-  image:
-    repository: grafana/loki
-    tag: "2.9.3"
   replicas: 2 # Optional: Limit read/write replicas
   config: # Defines the storage schema
     schema_config:
@@ -20,6 +17,7 @@ loki:
       lifecycler:
         ring:
           replication_factor: 2 # Limit writes to 2 replicas
+    existingSecret: ""
 promtail:
   enabled: true # Activates Promtail for log collection
   image:
@@ -27,7 +25,7 @@ promtail:
     tag: "2.9.3"
   config:
     clients:
-      - url: http://loki-stack.observability.svc.cluster.local:3100/loki/api/v1/push # Sets the endpoint for Promtail to push logs to Loki. This is the Loki service URL within the Kubernetes cluster
+      - url: http://loki:3100/loki/api/v1/push # Sets the endpoint for Promtail to push logs to Loki. This is the Loki service URL within the Kubernetes cluster
     positions:
       filename: /run/promtail/positions.yaml # Sets the file path where Promtail stores positions for each log it reads, ensuring logs are picked up from where it last left off
     scrape_configs:
