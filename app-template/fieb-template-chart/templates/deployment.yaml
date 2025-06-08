@@ -2,8 +2,17 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: {{ include "fieb-template-chart.fullname" . }}
-  labels:
-    {{- include "fieb-template-chart.labels" . | nindent 4 }}
+labels:
+  {{- include "fieb-template-chart.labels" . | nindent 4 }}
+  {{- with .Values.podLabels }}
+  {{- toYaml . | nindent 4 }}
+  {{- end }}
+
+  {{- with .Values.podAnnotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  #{{- if .Values.serviceAccount.create }}
 spec:
   {{- if not .Values.autoscaling.enabled }}
   replicas: {{ .Values.replicaCount }}
@@ -23,17 +32,11 @@ spec:
         {{- toYaml . | nindent 8 }}
         {{- end }}
     spec:
-      {{- with .Values.imagePullSecrets }}
-      imagePullSecrets:
-        {{- toYaml . | nindent 8 }}
-      {{- end }}
-      serviceAccountName: {{ include "fieb-template-chart.serviceAccountName" . }}
-      {{- with .Values.podSecurityContext }}
-      securityContext:
-        {{- toYaml . | nindent 8 }}
-      {{- end }}
       containers:
-        - name: {{ .Chart.Name }}
+        - name: {{ .Chart.values.nameOverride | default .Chart.Name }}
+          {{- if .Chart.Values.fullnameOverride }}
+          fullname: {{ .Chart.Values.fullnameOverride }}
+          {{- else }}
           {{- with .Values.securityContext }}
           securityContext:
             {{- toYaml . | nindent 12 }}

@@ -3,7 +3,8 @@ helm upgrade -n observability kube-prom-stack kube-prometheus-stack \
   -f prom-stack-values.yaml
 
 Persistência no addon observability microk8s
-
 Arquivo: prom-stack-values.yaml
 
+
 helm install loki-stack grafana/loki-stack -f loki-values.yaml --namespace observability --create-namespace
+Arquivo: loki-values.yaml
