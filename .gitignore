@@ -1,0 +1,3 @@
+*.token
+secrets.*
+history.txt
